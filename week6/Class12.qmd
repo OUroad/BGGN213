@@ -1,0 +1,293 @@
+---
+title: "Class12"
+author: "Hetian Su"
+format: pdf
+editor: visual
+---
+
+## Install Bioconductor
+
+```{r}
+# install.packages('BiocManager')
+# BiocManager::install()
+```
+
+```{r, echo=FALSE}
+# BiocManager::install('DESeq2')
+library(BiocManager)
+library(DESeq2)
+```
+
+## Read in data for input to DESeq2
+
+```{r}
+counts <- read.csv("airway_scaledcounts.csv", row.names=1)
+metadata <-  read.csv("airway_metadata.csv")
+```
+
+```{r}
+head(counts)
+```
+
+```{r}
+head(metadata)
+```
+
+### Q1
+
+```{r}
+nrow(counts)
+```
+
+**There are 38694 genes.**
+
+### Q2
+
+```{r}
+sum(metadata$dex=='control')
+```
+
+**There are 4 control samples.**
+
+### Toy differential gene expression analysis
+
+```{r}
+control <- metadata[metadata[,"dex"]=="control",]
+control.counts <- counts[ ,control$id]
+control.mean <- rowSums( control.counts )/4 
+head(control.mean)
+```
+
+### Q3
+
+**We can make this approaches into methods with "control" or "treated" as input. Also, the 4 should be replaced by a code that extract number of samples automatically.**
+
+### Q4
+
+```{r}
+treated <- metadata[metadata[,"dex"]=="treated",]
+treated.counts <- counts[ ,treated$id]
+treated.mean <- rowSums( treated.counts )/sum(metadata$dex=='treated')
+head(treated.mean)
+```
+
+```{r}
+meancounts <- data.frame(control.mean, treated.mean)
+colSums(meancounts)
+```
+
+### Q5
+
+```{r}
+plot(control.mean, treated.mean, xlab='Control', ylab='Treated')
+```
+
+```{r}
+library(ggplot2)
+ggplot(meancounts)+
+  aes(control.mean, treated.mean)+
+  geom_point()
+```
+
+### Q6
+
+```{r}
+plot(control.mean, treated.mean, log='xy')
+```
+
+```{r}
+meancounts$log2fc <- log2(meancounts[,"treated.mean"]/meancounts[,"control.mean"])
+head(meancounts)
+```
+
+```{r}
+zero.vals <- which(meancounts[,1:2]==0, arr.ind=TRUE)
+
+to.rm <- unique(zero.vals[,1])
+mycounts <- meancounts[-to.rm,]
+head(mycounts)
+```
+
+### Q7
+
+**arr.ind tells the function to return array indices instead of logical vectors. When array indices are returned, a gene that has 0 expression in both control and treated will give rise to duplicated array indices, so the unique() function is needed.**
+
+```{r}
+up.ind <- mycounts$log2fc > 2
+down.ind <- mycounts$log2fc < (-2)
+```
+
+### Q8
+
+```{r}
+sum(up.ind)
+```
+
+**There are 250 upregulated genes.**
+
+### Q9
+
+```{r}
+sum(down.ind)
+```
+
+**There are 367 down-regulated genes.**
+
+### Q10
+
+**No because the counts are not normalized.**
+
+## DESeq Analysis
+
+```{r}
+dds <- DESeqDataSetFromMatrix(countData=counts, 
+                              colData=metadata, 
+                              design=~dex)
+dds
+```
+
+```{r}
+dds <- DESeq(dds)
+res <- results(dds)
+res
+```
+
+```{r}
+summary(res)
+```
+
+```{r}
+res05 <- results(dds, alpha=0.05)
+summary(res05)
+```
+
+## Adding Data Annotation
+
+```{r, echo=FALSE}
+# BiocManager::install("AnnotationDbi")
+# BiocManager::install("org.Hs.eg.db")
+library(AnnotationDbi)
+library(org.Hs.eg.db)
+```
+
+what are the annotation keys contained in org for homo sapiens
+
+```{r}
+columns(org.Hs.eg.db)
+```
+
+```{r}
+res$symbol <- mapIds(org.Hs.eg.db,
+                     keys=row.names(res), # Our genenames
+                     keytype="ENSEMBL",        # The format of our genenames
+                     column="SYMBOL",          # The new format we want to add
+                     multiVals="first")
+```
+
+```{r}
+head(res)
+```
+
+```{r}
+# add entrez id, uniprot accession, GENENAME of the genes
+res$entrez <- mapIds(org.Hs.eg.db,
+                     keys=row.names(res), # Our genenames
+                     keytype="ENSEMBL",        # The format of our genenames
+                     column="ENTREZID",          # The new format we want to add
+                     multiVals="first")
+```
+
+```{r}
+res$uniprot <- mapIds(org.Hs.eg.db,
+                     keys=row.names(res), # Our genenames
+                     keytype="ENSEMBL",        # The format of our genenames
+                     column="UNIPROT",          # The new format we want to add
+                     multiVals="first")
+```
+
+```{r}
+res$genename <- mapIds(org.Hs.eg.db,
+                     keys=row.names(res), # Our genenames
+                     keytype="ENSEMBL",        # The format of our genenames
+                     column="GENENAME",          # The new format we want to add
+                     multiVals="first")
+```
+
+```{r}
+ord <- order( res$padj )
+head(res[ord,])
+```
+
+```{r}
+write.csv(res[ord,], "deseq_results.csv")
+```
+
+## Data Visualization
+
+```{r}
+plot( res$log2FoldChange,  -log(res$padj), 
+      xlab="Log2(FoldChange)",
+      ylab="-Log(P-value)")
+```
+
+```{r}
+# add lines to separate genes with 2 folds changes or more and with p-value > 0.05
+plot( res$log2FoldChange,  -log(res$padj), 
+      xlab="Log2(FoldChange)",
+      ylab="-Log(P-value)")
+abline(v=c(-2,2), col="darkgray", lty=2)
+abline(h=-log(0.05), col="darkgray", lty=2)
+```
+
+```{r}
+# further setup color for data points
+mycols <- rep("gray", nrow(res))
+mycols[ abs(res$log2FoldChange) > 2 ]  <- "red" 
+
+# cut off p-value at 0.01
+inds <- (res$padj < 0.01) & (abs(res$log2FoldChange) > 2 )
+mycols[ inds ] <- "blue"
+```
+
+```{r}
+plot( res$log2FoldChange,  -log(res$padj), 
+ col=mycols, ylab="-Log(P-value)", xlab="Log2(FoldChange)" )
+
+# Cut-off lines
+abline(v=c(-2,2), col="gray", lty=2)
+abline(h=-log(0.1), col="gray", lty=2)
+```
+
+## Pathway Analysis
+
+```{r}
+# BiocManager::install( c("pathview", "gage", "gageData") )
+library(pathview)
+library(gage)
+library(gageData)
+
+data(kegg.sets.hs)
+head(kegg.sets.hs, 2)
+```
+
+```{r}
+# extract a vector of annotated fold changes from DESeq2 results
+foldchanges = res$log2FoldChange
+names(foldchanges) = res$entrez
+head(foldchanges)
+```
+
+```{r}
+keggres = gage(foldchanges, gsets=kegg.sets.hs)
+
+```
+
+keggres with default same.dir = T gives separate groups of upregulated and downregulated pathways in a list.
+
+```{r}
+head(keggres$less, 3)
+```
+
+```{r}
+pathview(gene.data=foldchanges, pathway.id="hsa05310", kegg.native = F)
+```

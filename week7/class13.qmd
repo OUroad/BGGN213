@@ -1,0 +1,202 @@
+---
+title: "Class 13 - RNAseq mini project"
+author: "Hetian Su"
+format: pdf
+editor: visual
+---
+
+```{r, message=FALSE}
+# load the DESeq2 package
+library(DESeq2)
+```
+
+```{r}
+# load count and metadata for DEseq analysis
+metaFile <- 'GSE37704_metadata.csv'
+countFile <- 'GSE37704_featurecounts.csv'
+
+colData <- read.csv(metaFile, row.names = 1)
+head(colData)
+
+countData <- read.csv(countFile, row.names = 1)
+head(countData)
+```
+
+### Q1
+
+```{r}
+# remove the first length column from count data
+countData <- as.matrix(countData[,-1])
+head(countData)
+```
+
+### Q2
+
+```{r}
+# remove gene entries that have 0 in each sample
+countData <- countData[rowSums(countData)!=0, ]
+head(countData)
+```
+
+PCA quality control on the dataset to see if different conditions are separable.
+
+```{r}
+pca <- prcomp(t(countData), scale. = T)
+```
+
+```{r}
+plot(pca$x[,1], pca$x[,2], col=as.factor(colData$condition))
+```
+
+```{r}
+dds = DESeqDataSetFromMatrix(countData=countData,
+                             colData=colData,
+                             design=~condition)
+dds = DESeq(dds)
+
+dds
+```
+
+### Q3
+
+```{r}
+res <- results(dds)
+summary(res)
+```
+
+## Visualization
+
+### Q4
+
+```{r}
+mycols <- rep('gray', nrow(res))
+mycols[abs(res$log2FoldChange) > 2] <- 'red'
+inds <- (res$padj<0.01)&(abs(res$log2FoldChange)>2)
+mycols[inds] <- 'blue'
+plot( res$log2FoldChange, -log(res$padj), col=mycols, xlab="Log2(FoldChange)", ylab="-Log(P-value)" )
+```
+
+## Add Annotation
+
+### Q5
+
+```{r}
+library("AnnotationDbi")
+library("org.Hs.eg.db")
+
+columns(org.Hs.eg.db)
+
+res$symbol = mapIds(org.Hs.eg.db,
+                    keys=row.names(res), 
+                    keytype="ENSEMBL",
+                    column='SYMBOL',
+                    multiVals="first")
+
+res$entrez = mapIds(org.Hs.eg.db,
+                    keys=row.names(res),
+                    keytype="ENSEMBL",
+                    column="ENTREZID",
+                    multiVals="first")
+
+res$name =   mapIds(org.Hs.eg.db,
+                    keys=row.names(res),
+                    keytype='ENSEMBL',
+                    column='GENENAME',
+                    multiVals="first")
+
+head(res, 10)
+```
+
+### Q6
+
+```{r}
+# reorder the annotated gene data by adjusted p-values
+res <- res[order(res$padj),]
+write.csv(res, 'deseq_results.csv')
+```
+
+## Pathway Analysis
+
+```{r}
+# BiocManager::install( c("pathview", "gage", "gageData") )
+library(pathview)
+library(gage)
+library(gageData)
+
+data(kegg.sets.hs)
+data(sigmet.idx.hs)
+
+kegg.sets.hs <- kegg.sets.hs[sigmet.idx.hs]
+head(kegg.sets.hs,3)
+```
+
+```{r}
+# extract a named vector of fold changes to use as input to pathway mapping
+foldchanges = res$log2FoldChange
+names(foldchanges) = res$entrez
+head(foldchanges)
+```
+
+```{r}
+# map the extracted fold changes to pathways defined in the kegg.sets.hs, a portion of pathway database contianing signaling and metabolism pathways
+keggres = gage(foldchanges, gsets=kegg.sets.hs)
+```
+
+```{r}
+head(keggres$less)
+```
+
+```{r}
+# we find that the cell cycle pathway is the most down-regulated, map gene fold changes to this pathway
+pathview(gene.data=foldchanges, pathway.id="hsa04110")
+```
+
+Try to process the 5 most upregulated pathways
+
+```{r}
+keggrespathways <- row.names(keggres$greater)[1:5]
+keggresids <- substr(keggrespathways, start=1, stop=8)
+keggresids
+```
+
+```{r, message=FALSE}
+pathview(gene.data = foldchanges, pathway.id = keggresids, species = 'hsa')
+```
+
+### Q7 Repeat for the 5 most down regulated pathways
+
+```{r}
+keggresdownpathways <- row.names(keggres$less)[1:5]
+keggresdownids <- substr(keggresdownpathways, start=1, stop=8)
+pathview(gene.data = foldchanges, pathway.id = keggresdownids, species = 'hsa')
+```
+
+## GO Term Analysis
+
+```{r}
+data(go.sets.hs) #all GO terms
+data(go.subs.hs) #GO terms realted to BP, CC, MF
+
+gobpsets <- go.sets.hs[go.subs.hs$BP]
+gobpres <- gage(foldchanges, gsets = gobpsets, same.dir = T)
+```
+
+```{r}
+lapply(gobpres, head)
+```
+
+## Reactome Analysis
+
+```{r}
+# see how many significantly changed genes are there in total
+siggene <- res[res$padj<=0.05 & !is.na(res$padj),'symbol']
+print(paste('Total number of significantly changed genes is:', length(siggene)))
+```
+
+```{r}
+write.table(siggene, file="significant_genes.txt", row.names=FALSE, col.names=FALSE, quote=FALSE)
+```
+
+### Q8
+
+The Endosomal/Vacuolar pathway has the most significant entities p-value. The results do not match well the KEGG results. It seems that Reactome Database has overall a more detailed definition of "reaction", such that the same general type reaction in KEGG could have more versions, or subcategories, in Reactome. Here, KEGG analysis was restricted to signaling and metabolism pathways, whereas we seems to have not restricted the search in Reactome.

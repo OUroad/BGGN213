@@ -1,0 +1,56 @@
+---
+title: "Class 15"
+author: "Hetian Su"
+format: pdf
+editor: visual
+---
+
+## UNIX Commands
+
+pwd: print working directory. return absolute path
+
+ls: list files
+
+cd: change directory. ".." parent dir, "\~" root dir.
+
+mkdir: make directory
+
+touch: create new file
+
+rm: remove files and directories,
+
+mv: rename files
+
+cp: copy
+
+nano: open or create file if does not exist yet in text editor.
+
+less/more: view contents of file. press q to exit viewer.
+
+chmod: change mode
+
+ssh: secure shell, ssh -i keyfile username\@remote
+
+sudo: superuser do
+
+curl: download from web
+
+grep: finding match patterns.
+
+man: help, manual page
+
+\>: write to file
+
+\<: read from file
+
+scp: secure copy. -i keyfile username\@remote: absolute path to target file . (dot for keep the same file name)
+
+ctrl Z: suspend the process
+
+ps: show all processes
+
+kill: terminate process. -9 process id
+
+top:
+
+AWS instance identifier: https://us-west-2.console.aws.amazon.com/ec2/v2/home?region=us-west-2#Instances:instanceId=i-030724a9ac7393e66

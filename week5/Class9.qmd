@@ -1,0 +1,106 @@
+---
+title: "Class9"
+author: "Hetian Su"
+format: pdf
+editor: visual
+---
+
+## Checking PDB database statistics
+
+**Q1.**
+
+**Approximately 92.8% structures are solved by X-ray and EM.**
+
+**Q2**
+
+**Approximately 87% are protein only.**
+
+**Q3**
+
+**There are 1264 structures of HIV protease.**
+
+## Viewing PDB Structure with Molstar
+
+![](images/1HSG.png)
+
+**Reading and working with structures in R**
+
+```{r}
+# use the bio3d package
+# install.packages('bio3d')
+
+library(bio3d)
+
+pdb <- read.pdb('1hsg')
+pdb
+```
+
+```{r}
+# the atom attribute contains important information of a pdb file
+head(pdb$atom)
+```
+
+```{r}
+adk <- read.pdb('6s36')
+adk
+```
+
+**Predicting functional motions using Normal Mode Analysis (NMA), revealing the flexible parts of the structure.**
+
+```{r}
+m <- nma(adk)
+plot(m)
+```
+
+```{r}
+mktrj(m, file='adk_nma.pdb')
+```
+
+**How to analyze variant forms of the structure:**
+
+**retrieve the sequence, search against the pdb database, retrieve the sequences of the hits, load files in Molstar.**
+
+```{r}
+aa <- get.seq('1ake_a')
+```
+
+```{r}
+blast <- blast.pdb(aa)
+```
+
+```{r}
+hits <- plot(blast)
+```
+
+```{r}
+# insepct the hits with low E-values
+pdb.annotate(hits$pdb.id)
+```
+
+```{r}
+files <- get.pdb(hits$pdb.id, path = 'pdbs', split = T, gzip = T)
+```
+
+**Multiple sequence align and superpose these structures**
+
+```{r, echo=FALSE}
+# install.packages('BiocManager')
+# BiocManager::install('msa')
+
+pdbs <- pdbaln(files, fit = T, exefile='msa')
+```
+
+```{r}
+pdbs
+```
+
+**PCA the structures**
+
+```{r}
+pca.xray <- pca(pdbs)
+plot(pca.xray)
+```
+
+```{r}
+mktrj(pca.xray, pc=1, file='pc_1.pdb')
+```

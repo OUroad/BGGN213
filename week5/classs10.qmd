@@ -1,0 +1,240 @@
+---
+title: "Class10 Halloween"
+author: "Hetian SU"
+format: pdf
+editor: visual
+---
+
+# Explore the dataset
+
+```{r}
+# load the dataset
+candy_file <- "candy-data.csv"
+
+candy = read.csv(candy_file, row.names=1)
+head(candy)
+```
+
+## Q1
+
+```{r}
+nrow(candy)
+```
+
+There are 85 types of candies.
+
+## Q2
+
+```{r}
+sum(candy['fruity']==1)
+```
+
+There are 38 types of fruity candies.
+
+## Q3
+
+```{r}
+candy['Air Heads',]$winpercent
+```
+
+## Q4
+
+```{r}
+candy['Kit Kat',]$winpercent
+```
+
+## Q5
+
+```{r}
+candy['Tootsie Roll Snack Bars',]$winpercent
+```
+
+```{r}
+# inspect dataset with skim
+# install.packages('skim')
+library(skimr)
+skim(candy)
+```
+
+## Q6
+
+The variable winpercent is on a different scale.
+
+## Q7
+
+n_missing is the number of NA entries, and complete_rate is how many of the entries are not NA.
+
+# Examine the winpercent variable
+
+## Q8
+
+```{r}
+library(ggplot2)
+
+ggplot(candy)+
+  aes(x=winpercent)+
+  geom_histogram()
+```
+
+## Q9
+
+The distribution is not symmetrical.
+
+## Q10
+
+The center of distribution is below 50%.
+
+## Q11
+
+```{r}
+mean(candy$winpercent[as.logical(candy$chocolate)])
+mean(candy$winpercent[as.logical(candy$fruity)])
+```
+
+On average chocolate candies rank higher.
+
+## Q12
+
+```{r}
+t.test(x=candy$winpercent[as.logical(candy$chocolate)], y=candy$winpercent[as.logical(candy$fruity)])
+```
+
+The difference is statistically significant.
+
+## Q13
+
+```{r}
+library(dplyr)
+candy %>% arrange(winpercent) %>% head(5)
+```
+
+## Q14
+
+```{r}
+candy %>% arrange(winpercent) %>% tail(5)
+```
+
+## Q15
+
+```{r}
+ggplot(candy)+
+  aes(winpercent, rownames(candy))+
+  geom_col()
+```
+
+## Q16
+
+```{r}
+ggplot(candy)+
+  aes(winpercent, reorder(rownames(candy), winpercent))+
+  geom_col()
+```
+
+```{r}
+# prepare a sequence of colors by candy type
+my_cols = rep('black', nrow(candy))
+my_cols[as.logical(candy$chocolate)] = 'chocolate'
+my_cols[as.logical(candy$bar)] = 'brown'
+my_cols[as.logical(candy$fruity)] = 'pink'
+```
+
+```{r}
+ggplot(candy)+
+  aes(winpercent, reorder(rownames(candy), winpercent))+
+  geom_col(fill=my_cols)
+```
+
+## Q17
+
+The worst chocolate candy is Charleston Chew.
+
+## Q18
+
+The worst fruity candy is Nik L Nip.
+
+# Examine the pricepercent variable
+
+```{r, warning=FALSE}
+# plot winpercent against pricepercent to assess the candies
+# install.packages('ggrepel')
+
+library(ggrepel)
+ggplot(candy)+
+  aes(winpercent, pricepercent, label=rownames(candy))+
+  geom_point(col=my_cols)+
+  geom_text_repel(col=my_cols, size=3.3, max.overlaps=7)
+```
+
+## Q19
+
+It's the ReeseOs Miniatures.
+
+## Q20
+
+```{r}
+head(candy[order(candy$pricepercent, decreasing = T), c(11, 12)], n=5)
+```
+
+# Correlation Structure
+
+```{r}
+# examine correlations between the variables with corrplot
+# install.packages('corrplot')
+
+library(corrplot)
+
+pwc <- cor(candy)
+corrplot(pwc)
+```
+
+## Q22
+
+**chocolate and fruity, bar and pluribus, bar and fruity are evidently anti-correlated.**
+
+## Q23
+
+**chocolate and winpercent seem to be most postively correlated.**
+
+# PCA
+
+```{r}
+pca <- prcomp(candy, scale = T)
+summary(pca)
+```
+
+```{r}
+plot(pca$x[,1:2], col=my_cols, pch=16)
+```
+
+```{r}
+# plot PCs and see how they relate to variables of interest
+# include text and label for ggrepel
+my_data <- cbind(candy, pca$x[, 1:3])
+p <- ggplot(my_data)+
+  aes(x=PC1, y=PC2, size=winpercent/100, text=rownames(my_data), label=rownames(my_data))+
+  geom_point(col=my_cols)
+```
+
+```{r, warning=FALSE}
+p + geom_text_repel(col=my_cols, size=3.3, max.overlaps = 7)+
+  theme(legend.position = 'none')+
+  labs(title = 'Halloween Candy PCA', subtitle = 'Color by type: chocolate (chocolate), bar (brown), fruity (pink), others (black)', caption = 'Data from 538')
+```
+
+```{r}
+# interactive plot with plotly
+# install.packages('plotly')
+#library(plotly)
+
+#ggplotly(p)
+```
+
+```{r}
+# variable contribution to PC1
+par(margin=c(8,4,2,2))
+barplot(pca$rotation[,1], las=2, ylab = 'PC1 Weight')
+```
+
+## Q24
+
+**Fruity, hard and pluribus are shown to have positive contributions. Since PC1 largely separates the 3 types fruity, chocolate and bar, it makes sense that fruity shows strong positive contribution. Pluribus seems to be positively correlated with fruity and makes similar contribution as fruity candy are usually pluribus, whereas chocolates are usually packed as bars.**

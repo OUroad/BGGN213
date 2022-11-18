@@ -1,0 +1,266 @@
+---
+title: "Class8"
+author: "Hetian Su"
+format: pdf
+editor: visual
+---
+
+```{r}
+# load dataset
+fna.data <- 'WisconsinCancer.csv'
+wisc.df <- read.csv(fna.data, row.names = 1)
+head(wisc.df)
+```
+
+```{r}
+# exclude the diagnosis column for unsupervised learning
+wisc.data <- wisc.df[,-1]
+
+# separately store the diagnosis data
+diagnosis <- as.factor(wisc.df$diagnosis)
+```
+
+# PCA Analysis
+
+## Q1
+
+```{r}
+# how many observations are in the dataset
+nrow(wisc.data)
+```
+
+There are in total 569 observations
+
+## Q2
+
+```{r}
+# how many malignant observations
+sum(diagnosis=='M')
+```
+
+There are 212 malignant observations
+
+## Q3
+
+```{r}
+# how many variables are measurements of mean
+length(grep('mean', colnames(wisc.df)))
+```
+
+There are 10 measurements of means
+
+```{r}
+# Check the column means and standard deviation to determine whether scaling is needed
+colMeans(wisc.data)
+apply(wisc.data, 2, sd)
+```
+
+```{r}
+# Perform PCA
+wisc.pr <- prcomp(wisc.data, scale = T)
+summary(wisc.pr)
+```
+
+## Q4
+
+44.27% of original variance is captured by PC1.
+
+## Q5
+
+3 PCs are needed to capture more than 70% of variance.
+
+## Q6
+
+7 PCs are needed to capture at least 90% of variance.
+
+## Q7
+
+```{r}
+biplot(wisc.pr)
+```
+
+The biplot is hard to read because the distribution of observations and the visualization of contributions of variables to PC1 and 2 are all overlapped with each other. Although we can see that almost all variables push the variances to the left along PC1, it is hard to distinguish variables from each other.
+
+```{r}
+# try a better visualizaiton by scatter plot
+plot(wisc.pr$x[,1], wisc.pr$x[,2], col=diagnosis, xlab='PC1', ylab='PC2')
+```
+
+## Q8
+
+```{r}
+plot(wisc.pr$x[,1],wisc.pr$x[,3], col=diagnosis, xlab='PC1', ylab='PC3')
+```
+
+We can see that PC1 contributes to the differences between benign and malignant observations a lot more than PC3. Also the clustering is not very clear, with some observations overlap with other observations from the different cluster.
+
+```{r}
+# use ggplot2 for better visualization
+df <- as.data.frame(wisc.pr$x)
+
+library(ggplot2)
+
+ggplot(df) +
+  aes(PC1, PC2, col=diagnosis) +
+  geom_point()
+```
+
+```{r}
+# explore how much variance is explained by the PCs
+pr.var <- wisc.pr$sdev^2
+head(pr.var)
+```
+
+```{r}
+pve <- pr.var/sum(pr.var)
+
+# plot variance explained by each PC
+plot(pve, xlab = 'Principle Components', ylab = 'Proportion of variance explained', ylim = c(0,1), type = 'o')
+```
+
+```{r}
+# alternative visulaization with barplot
+barplot(pve, ylab = 'Percent variance explained', names.arg = paste0('PC', 1:length(pve)), las=2, axes=F)
+axis(2, at=pve, labels = round(pve, 2)*100)
+```
+
+## Q9
+
+```{r}
+loadVec1 <- wisc.pr$rotation[,1]
+loadVec1[names(loadVec1)=='concave.points_mean']
+```
+
+The loading vector of this variable to PC1 is -0.26.
+
+# Hierarchical Clustering
+
+```{r}
+data.scaled <- scale(wisc.data)
+data.dist <- dist(data.scaled)
+wisc.hclust <- hclust(data.dist, method='complete')
+```
+
+## Q10
+
+```{r}
+plot(wisc.hclust)
+abline(h=19.5, col='red', lty=2)
+```
+
+A height between 19 and 20 yields 4 clusters.
+
+```{r}
+wisc.hclust.clusters <- cutree(wisc.hclust, k=4)
+table(wisc.hclust.clusters, diagnosis)
+```
+
+## Q11
+
+```{r}
+for (i in 2:10){
+  wisc.hclust.clusters <- cutree(wisc.hclust, k=i)
+  print(table(wisc.hclust.clusters, diagnosis))
+}
+```
+
+In this case, 4 or 5 clusters perform the best in terms of having 2 clusters that contain most benign and malignant observations in each.
+
+## Q12
+
+```{r}
+# single
+wisc.hclust <- hclust(data.dist, method='single')
+wisc.hclust.clusters <- cutree(wisc.hclust, k=4)
+table(wisc.hclust.clusters, diagnosis)
+```
+
+```{r}
+# average
+wisc.hclust <- hclust(data.dist, method='average')
+wisc.hclust.clusters <- cutree(wisc.hclust, k=4)
+table(wisc.hclust.clusters, diagnosis)
+```
+
+```{r}
+# ward D2
+wisc.hclust <- hclust(data.dist, method='ward.D2')
+wisc.hclust.clusters <- cutree(wisc.hclust, k=2)
+table(wisc.hclust.clusters, diagnosis)
+```
+
+```{r}
+# complete again
+wisc.hclust <- hclust(data.dist, method='complete')
+wisc.hclust.clusters <- cutree(wisc.hclust, k=4)
+table(wisc.hclust.clusters, diagnosis)
+```
+
+For a 2-cluster observations in which the clusters are not obviously separated, and many observations from different clusters lie on the interface of 2 clusters, we should choose a method that best separate close observations that belong to different clusters. The "complete" method seems to work the best here, which is reasonable since it is the least affected by close observations.
+
+# Combining Methods
+
+```{r}
+# use the PCs for hierarchical clustering
+wisc.pr.hclust <- hclust(dist(wisc.pr$x[,1:7]), method = 'ward.D2')
+grps <- cutree(wisc.pr.hclust, k=2)
+table(grps, diagnosis)
+```
+
+```{r}
+plot(wisc.pr$x[,1:2], col=grps)
+```
+
+```{r}
+# swap the group factor level to match clutering results with diagnosis
+g <- as.factor(grps)
+g <- relevel(g, 2);
+plot(wisc.pr$x[,1:2], col=g)
+```
+
+## Q13
+
+```{r}
+wisc.pr.hclust.clusters <- cutree(wisc.pr.hclust, k=2)
+table(wisc.pr.hclust.clusters, diagnosis)
+```
+
+```{r}
+wisc.pr.hclust.clusters <- cutree(wisc.pr.hclust, k=4)
+table(wisc.pr.hclust.clusters, diagnosis)
+```
+
+The 2 clusters already contain most benign and malignant observations in each cluster, with smaller false positive rates than the other models. The 4 clusters accurately group most benign observations in 1 clusters, and malignant observations in the other 3 clusters, with only 1 of them containing high proportion of false positive presumably because this cluster lies on the interface of groups.
+
+## Q14
+
+```{r}
+table(wisc.hclust.clusters, diagnosis)
+```
+
+The best pre-PCA clustering using "complete" method has both a higher true positive rate and a high false positive rate for the benign group. At the same time it has a lower true positive and a lower false positive rate for the malignant group.
+
+## Q15
+
+The PCA clustering model shows a higher sensitivity and a higher specificity.
+
+# Prediction
+
+```{r}
+# load a new cancer cell data
+url <- "https://tinyurl.com/new-samples-CSV"
+new <- read.csv(url)
+npc <- predict(wisc.pr, newdata=new)
+npc
+```
+
+```{r}
+# plot the predicted PC of the 2 new patients on the scatter plot based on the wisconsin dataset
+plot(wisc.pr$x[,1:2], col=g)
+points(npc[,1], npc[,2], col='blue', pch=16, cex=3)
+text(npc[,1], npc[,2], c(1,2), col='white')
+```
+
+## Q16
+
+As shown, the patient 1 is predicted to fall into the benign group, whereas patient 2 the malignant group, and the 2 patients do not lie close to the interface of clusters. Therefore, it is by high chance that the prediction is accurate and patient 2 should be prioritized.

@@ -1,0 +1,222 @@
+---
+title: "Class 05: Data Visualization with ggplot"
+author: "Hetian Su"
+format: pdf
+editor: visual
+---
+
+# **Scatter Plots**
+
+Every ggplot contain at least 3 layers:
+
+**Data** the data frame input
+
+**Aes** the asesthetic features to map to the plot
+
+**Geom** the way of data representation
+
+```{r}
+#load ggplot
+# install.packages('ggplot2')
+library(ggplot2)
+
+ggplot(cars)
+```
+
+```{r}
+#map distance and speed to aesthetics
+ggplot(data=cars)+
+  aes(speed, dist)
+```
+
+```{r}
+#Now specify a goem layer
+ggplot(cars)+
+  aes(speed, dist)+
+  geom_point()
+```
+
+```{r}
+#add a trend line layer
+ggplot(cars)+
+  aes(speed, dist)+
+  geom_point()+
+  geom_smooth()
+```
+
+```{r}
+#use trend line without standard errors
+ggplot(cars)+
+  aes(speed, dist)+
+  geom_point()+
+  geom_smooth(method='lm', se=FALSE)
+```
+
+```{r}
+#add labels and change theme to black/white
+ggplot(cars)+
+  aes(speed, dist)+
+  geom_point()+
+  geom_smooth(method='lm', se=FALSE)+
+  theme_bw()+
+  labs(title='Car speed vs stopping distance', x='Speed (mph)', y='stopping distance (ft)', caption = 'Cars Data')
+```
+
+## More aesthetics
+
+```{r}
+#load drug treatment and gene expression data
+url <- 'https://bioboot.github.io/bimm143_S20/class-material/up_down_expression.txt'
+genes <- read.delim(url)
+head(genes)
+```
+
+```{r}
+#explore the dataset
+nrow(genes)
+colnames(genes)
+ncol(genes)
+
+table(genes$State)
+
+upFrac = round(127/5196*100, 2)
+upFrac
+```
+
+There are `r nrow(genes)` genes in the dataset, `r ncol(genes)` columns, `r round(table(genes$State)['up']/nrow(genes)*100, 2)` % genes are upregulated.
+
+Create the simple scatter plot for genes dataset
+
+```{r}
+ggplot(genes)+
+  aes(Condition1, Condition2)+
+  geom_point()
+```
+
+```{r}
+#map color to State and store the plot object to p
+p <- ggplot(genes)+
+  aes(Condition1, Condition2, col=State)+
+  geom_point()
+p
+```
+
+```{r}
+#manually define the color scale
+p <- p + scale_color_manual(values = c('blue','grey','red'))
+p
+```
+
+**Add labels to the plot**
+
+```{r}
+p <- p + labs(title='Gene Expression Changes Upon Drug Treatment', x='Control (no drug)',y='Drug Treatment')
+p
+```
+
+## Going Further
+
+```{r}
+#load the gapminder dataset
+url <- 'https://raw.githubusercontent.com/jennybc/gapminder/master/inst/extdata/gapminder.tsv'
+gapminder <- read.delim(url)
+```
+
+```{r}
+# install.packages('dplyr')
+library(dplyr)
+
+gapminder_2007 <- gapminder%>%filter(year==2007)
+```
+
+```{r}
+#simple plot for lifeexp vs gdp per captia
+ggplot(gapminder_2007)+
+  aes(gdpPercap, lifeExp)+
+  geom_point()
+```
+
+```{r}
+#add transparency to points
+ggplot(gapminder_2007)+
+  aes(gdpPercap, lifeExp)+
+  geom_point(alpha=0.4)
+```
+
+```{r}
+#map to continent and population size to aesthetics
+ggplot(gapminder_2007)+
+  aes(gdpPercap, lifeExp, col=continent, size=pop)+
+  geom_point(alpha=0.4)
+```
+
+```{r}
+#adjust the point sizes to be proportional to actual population sizes
+ggplot(gapminder_2007)+
+  aes(gdpPercap, lifeExp, size=pop)+
+  geom_point(alpha=0.5)+
+  scale_size_area(max_size = 10)
+```
+
+**Create plot for gapminder 1957 and compare it to the plot of 2007**
+
+```{r}
+gapminder_1957 <- gapminder%>%filter(year==1957)
+ggplot(gapminder_1957)+
+  geom_point(aes(gdpPercap, lifeExp, color=continent), alpha=0.5)+
+  scale_size_area(max_size = 10)
+```
+
+```{r}
+#create side by side plot for the 2 filtered datasets
+gapminder_comb <- gapminder%>%filter(year==1957 | year==2007)
+
+ggplot(gapminder_comb)+
+  geom_point(aes(gdpPercap, lifeExp, color=continent, size=pop), alpha=0.5)+
+  scale_size_area(max_size = 10)+
+  facet_wrap(~year)
+```
+
+# Box Plot
+
+```{r}
+#boxplot for gapminder of 5 biggest countries in 2007
+gapminder_top5 <- gapminder%>%filter(year==2007)%>%
+  arrange(desc(pop))%>%
+  top_n(5, pop)
+
+ggplot(gapminder_top5, aes(country, pop))+
+  geom_col()
+```
+
+```{r}
+#plot country vs population and scale color with gdp
+ggplot(gapminder_top5)+
+  geom_col(aes(reorder(country,-pop), pop, fill=gdpPercap))
+```
+
+```{r}
+#fill by country
+ggplot(gapminder_top5)+
+  geom_col(aes(reorder(country,-pop), pop, fill=country))+
+  guides(fill='none')
+```
+
+# Animation
+
+```{r}
+# install.packages('gifski')
+# install.packages('gganimate')
+library(gifski)
+library(gganimate)
+
+ggplot(gapminder, aes(gdpPercep, lifeExp, size=pop, colour=country))+
+  geom_point(alpha=0.7, show.legend = FALSE)+
+  scale_color_manual(values = country)+
+  scale_size(c(2,12))+
+  scale_x_log10()+
+  facet_wrap(~continent)+
+  labs(title='Year:{frame_time}', x='gdp per captia', y='life expectancy')+
+  transition_time(year)+
+  shadow_wake(wake_length=0.1, alpha=FALSE)
+```

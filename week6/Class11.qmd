@@ -1,0 +1,46 @@
+---
+title: "Class11"
+author: "Hetian Su"
+format: pdf
+editor: visual
+---
+
+## Q13
+
+```{r}
+# read in the file
+pop <- read.table('rs8067378_ENSG00000172057.6.txt')
+```
+
+```{r}
+summary(pop[pop$geno=='A/G',])
+```
+
+**The genotype A/G has sample size 233 and median 25.065.**
+
+```{r}
+summary(pop[pop$geno=='A/A',])
+```
+
+**The genotype A/A has sample size 108 and median 31.25**
+
+```{r}
+summary(pop[pop$geno=='G/G',])
+```
+
+**The genotype G/G has sample size 121 and median 20.074.**
+
+## Q14
+
+```{r}
+library(ggplot2)
+```
+
+```{r}
+ggplot(pop)+
+  aes(geno, exp, fill=geno)+
+  geom_boxplot(notch = T)+
+  labs(x='Genotypes', y='ORMDL3 Expression')
+```
+
+**Comparing A/A and G/G, we can infer that homozygous A/A is correlated with a significantly higher ORMDL3 expression level. Combining with the fact that one allele changing to G results in a intermediate expression level, we can propose that allele A is a "stronger" allele correlated with high ORMDL3 expression, whereas G is a "weaker" allele.**

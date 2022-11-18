@@ -1,0 +1,53 @@
+---
+title: "class6 supplement"
+author: "Hetian Su"
+format: pdf
+editor: visual
+---
+
+## Generalize code into function
+
+```{r}
+# load the bio3d package
+#install.packages('bio3d')
+
+library(bio3d)
+
+#function name - protDrugInt
+#description - read in any given protein sequence from PDB, extract the data of chain A from the PDB structural data, extract atom data from the chain, and plot the structure of the chain
+#Input - prot: the protein code as in PDB
+#Output - the plot of the selected chain of the given protein
+
+protDrugInt <- function(prot){
+  
+  S <- c()
+  
+  for (p in 1:length(prot)){
+    # retrieve sturctural data from pdb
+    s <- read.pdb(prot[p])
+    
+    # extract chain A and atom data
+    s.A <- trim.pdb(s, chain='A', elety='CA')
+    s.b <- s.A$atom$b
+    
+    # store the individual protein data
+    S <- rbind(S, s.b)
+  
+    # plot the chain
+    # plotb3(s.b, sse=s.A, typ='l', ylab='Bfactor')
+  }
+  
+  #name the rows to the names of the proteins
+  row.names(S) <- prot
+  
+  hc <- hclust( dist( S ) )
+  plot(hc)
+}
+```
+
+```{r}
+# test output
+Prot = c('4AKE','1AKE','1E4Y')
+
+protDrugInt(Prot)
+```

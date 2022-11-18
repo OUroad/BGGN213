@@ -1,0 +1,160 @@
+---
+title: "Class7"
+author: "Hetian Su"
+format: pdf
+editor: visual
+---
+
+# K-means clustering
+
+create a custom data to cluster
+
+```{r}
+tmp <- c(rnorm(30, -3), rnorm(30,3))
+x <- cbind(x=tmp, y=rev(tmp))
+plot(x)
+```
+
+Try the kmeans clustering function in base R
+
+```{r}
+km <- kmeans(x, centers = 2, nstart = 30)
+km
+```
+
+## Q
+
+What are the components of the clustering that give:
+
+-   cluster center: "centers"
+
+-   cluster size: "size"
+
+-   plot the centers as blue points on top of the scatter plot where the clusters are colored differently
+
+```{r}
+plot(x, col=km$cluster)
+points(km$centers, col='blue', pch=15)
+```
+
+# Hierarchical Clustering
+
+```{r}
+tmp <- c(rnorm(30, -3), rnorm(30,3))
+d <- cbind(x=tmp, y=rev(tmp))
+
+hc <- hclust(dist(d))
+plot(hc)
+```
+
+```{r}
+grp <- cutree(hc, k=2)
+```
+
+# UK Food Data
+
+## Q1
+
+```{r}
+#import data
+url <- "https://tinyurl.com/UK-foods"
+x <- read.csv(url)
+
+#inspect number of rows and columns
+dim(x)
+```
+
+inspect the data to make sure the dataframe is correctly imported
+
+```{r}
+# view(x)
+head(x, 6)
+```
+
+Rename the row names to sample/food names
+
+```{r}
+rownames(x) <- x[,1]
+x <- x[,-1]
+head(x,6)
+```
+
+## Q2
+
+In this case where the structure of the dataframe is known to us, we should use the setting row names while importing method to be concise with codes. However, in cases where we do not know the structure of the dataframe before inspecting it, the first method is more robust.
+
+## Q3
+
+Change the histogram to be stacked
+
+```{r}
+barplot(as.matrix(x), beside = F, col = rainbow(nrow(x)))
+```
+
+## Q5
+
+create and interpret a pairwise plot of the dataset
+
+```{r}
+pairs(x, col=rainbow(nrow(x)), pch=16)
+```
+
+Each pairwise scatter plot has x axis representing one region and y axis representing another region. A diagonal line indicates that the data points have similar values in both regions.
+
+## Q6
+
+As compared to all other 3 regions, N.Ireland has more data points that are off the diagonal line. The most evident ones are the points colored in blue, orange and cyan.
+
+## Q7
+
+Use base R PCA function to analyze the data.
+
+```{r}
+pca <- prcomp(t(x))
+summary(pca)
+
+#plot PC1 va PC2
+plot(pca$x[,1], pca$x[,2], xlab='PC1', ylab='PC2', xlim=c(-270, 500))
+text(pca$x[,1], pca$x[,2], colnames(x))
+```
+
+## Q8
+
+Change the color of the text to match the colors on the map
+
+```{r}
+plot(pca$x[,1], pca$x[,2], xlab='PC1', ylab='PC2', xlim=c(-270, 500))
+text(pca$x[,1], pca$x[,2], colnames(x), col = c('orange','red','blue','green'))
+```
+
+We can also retrieve the properties of the PCA from pca data
+
+```{r}
+# retrieve the standard deviations
+sd <- round(pca$sdev^2/sum(pca$sdev^2)*100)
+sd
+```
+
+```{r}
+z <- summary(pca)
+z$importance
+```
+
+```{r}
+barplot(sd, xlab = 'Principle Components', ylab = 'Percent Variance')
+```
+
+```{r}
+# retrieve the loading scores of each varianle on PC1
+par(mar=c(10, 3, 0.35, 0))
+barplot(pca$rotation[,1], las=2, ylab = 'PC1')
+```
+
+## Q9
+
+```{r}
+par(mar=c(10, 3, 0.35, 0))
+barplot(pca$rotation[,2], las=2)
+```
+
+PC2 loading scores show that Fresh_potatoes most strongly pushes Wales up the axis from England and N.Ireland, while Soft_drinks most strongly pushes Scotland down the axis from England and N.Ireland.
