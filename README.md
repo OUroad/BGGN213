@@ -8,4 +8,4 @@ Class work for [Introbuction to Bioinformatics](https://bioboot.github.io/bggn21
 
 - Class 4: Introduction to R
 
-- Class 10: [PCA for Candy]()
+- Class 10: [PCA for Candy](https://github.com/OUroad/BGGN213/blob/main/week5/classs10.qmd)
